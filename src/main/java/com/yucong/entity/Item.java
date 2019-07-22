@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(indexName = "item", type = "doc", shards = 1, replicas = 0)
+@Document(indexName = "item", type = "doc", shards = 1, replicas = 0) // 分片为，副本为0
 public class Item {
 
     /**
