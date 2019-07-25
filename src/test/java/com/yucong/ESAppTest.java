@@ -1,5 +1,6 @@
 package com.yucong;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +15,7 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilde
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.yucong.dao.ItemRepository;
-import com.yucong.entity.Item;
+import com.yucong.entity.User;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = ESApp.class)
@@ -27,24 +28,31 @@ public class ESAppTest {
 
     @Test
     public void createIndex() {
-        boolean createIndex = esTemplete.createIndex(Item.class);
+        boolean createIndex = esTemplete.createIndex(User.class);
         System.out.println(createIndex);
     }
 
     @Test
     public void deleteIndex() {
-        boolean deleteIndex = esTemplete.deleteIndex(Item.class);
+        boolean deleteIndex = esTemplete.deleteIndex(User.class);
         System.out.println(deleteIndex);
     }
 
+    /**
+     * https://www.elastic.co/guide/cn/index.html
+     */
     @Test
-    public void save() {
-        List<Item> list = new ArrayList<>();
-        list.add(new Item(1L, "小米手机7", "手机", "小米", 3299.00, "http://image.baidu.com/13123.jpg"));
-        list.add(new Item(2L, "坚果手机R1", "手机", "锤子", 3699.00, "http://image.baidu.com/13123.jpg"));
-        list.add(new Item(3L, "华为META10", "手机", "华为", 4499.00, "http://image.baidu.com/13123.jpg"));
-        list.add(new Item(4L, "小米Mix2S", "手机", "小米", 4299.00, "http://image.baidu.com/13123.jpg"));
-        list.add(new Item(5L, "荣耀V10", "手机", "华为", 2799.00, "http://image.baidu.com/13123.jpg"));
+    public void save() throws Exception {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        List<User> list = new ArrayList<>();
+        list.add(new User(1l, "赵敏", "女", 25, "排球，足球，游泳", "江苏省", "淮安市", sdf.parse("2017-01-01"), ""));
+        list.add(new User(2l, "钱钟书", "男", 58, "足球，书法", "江苏省", "淮安市", sdf.parse("2018-02-31"), ""));
+        list.add(new User(3l, "孙满堂", "男", 78, "跑步，篮球，羽毛球", "江苏省", "南京市", sdf.parse("2019-01-01"), ""));
+        list.add(new User(4l, "李白", "男", 34, "书法，篮球", "江苏省", "南京市", sdf.parse("2019-01-01"), ""));
+        list.add(new User(5l, "周武王", "男", 58, "跑步", "山东省", "济南市", sdf.parse("2019-02-01"), ""));
+        list.add(new User(6l, "吴文周", "男", 50, "排球，游泳，足球", "山东省", "济南市", sdf.parse("2019-02-01"), ""));
+        list.add(new User(7l, "郑爽", "女", 28, "乒乓球，高尔夫，台球", "山东省", "青岛市", sdf.parse("2019-11-21"), ""));
+        list.add(new User(8l, "王老汉", "男", 28, "台球，足球", "山东省", "青岛市", sdf.parse("2019-11-25"), ""));
         itemRepository.saveAll(list);
     }
 
@@ -56,11 +64,19 @@ public class ESAppTest {
         queryBuilder.withQuery(QueryBuilders.matchQuery("title", "小米"));
 
         // 搜索，获取结果
-        Page<Item> items = this.itemRepository.search(queryBuilder.build());
+        Page<User> items = this.itemRepository.search(queryBuilder.build());
         // 总条数
         long total = items.getTotalElements();
         System.out.println("total = " + total);
-        for (Item item : items) {
+        for (User item : items) {
+            System.out.println(item);
+        }
+    }
+
+    @Test
+    public void findAll() {
+        Iterable<User> all = itemRepository.findAll();
+        for (User item : all) {
             System.out.println(item);
         }
     }
