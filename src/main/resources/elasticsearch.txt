@@ -13,6 +13,16 @@ Java High Level REST Client 用于Elasticsearch的官方高级客户端。它是
 
 高级客户端内部会创建低级客户端用于基于提供的builder执行请求。低级客户端维护一个连接池，并启动一些线程，因此当你用完以后应该关闭高级客户端，并且在内部它将会关闭低级客户端，以释放这些资源。关闭客户端可以使用close()方法
 
+高级客户端需要Java 1.8并依赖于Elasticsearch core项目。 客户端版本需要与Elasticsearch版本相同。 它与TransportClient请求的参数和返回响应对象相同。 如果您需要将应用程序从TransportClient迁移到新的REST客户端，请参阅“迁移指南”。
+
+要能够与Elasticsearch进行通信，主版本号需要一致，次版本号不必相同，因为它是向前兼容的。次版本号小于等于elasticsearch的都可以。这意味着它支持与更高版本的Elasticsearch进行通信。
+
+6.0客户端能够与任何6.x Elasticsearch节点通信，而6.1客户端肯定能够与6.1,6.2和任何后来的6.x版本进行通信，但与旧版本的Elasticsearch节点通信时可能会存在不兼容的问题，例如6.1和6.0之间，可能6.1客户端支持elasticsearch 6.0还没出来的API。
+
+建议在将Elasticsearch集群升级到新的主要版本时升级高级客户端，因为REST API中断更改可能会导致意料之外的结果，具体取决于请求所击中的节点，以及新添加的API只能被更新的客户端版本支持。应该在群集中的所有节点都升级到新的主要版本之后，客户端才更新。
+
+可以在这里找到高级客户端的Javadoc。
+
 
 elasticsearch6.x以后一个index只能存在一个type
 
@@ -127,3 +137,390 @@ PUT bk
 
 ==============================================================================================================================================
 如果我们的数据没有自然ID，我们可以让Elasticsearch自动为我们生成。请求结构发生了变化：PUT方法——“在这个URL中存储文档”变成了POST方法——"在这个类型下存储文档"
+
+
+==============================================================================================================================================
+https://www.cnblogs.com/leeSmall/p/9215909.html
+https://www.elastic.co/guide/cn/index.html			官方中文API
+
+
+
+
+当进行精确值查找时，我们会使用过滤器（filters）。过滤器很重要，因为它们执行速度非常快，不会计算相关度（直接跳过了整个评分阶段）而且很容易被缓存。我们会在本章后面的 过滤器缓存 中讨论过滤器的性能优势，不过现在只要记住：请尽可能多的使用过滤式查询。
+
+
+"aggregations" : {
+    "<aggregation_name>" : { <!--自定义聚合名称 -->
+        "<aggregation_type>" : { <!--聚合类型、聚合函数 -->
+            <aggregation_body> <!--聚合体：对哪些字段进行聚合 -->
+        }
+        [,"meta" : {  [<meta_data_body>] } ]? <!--元 -->
+        [,"aggregations" : { [<sub_aggregation>]+ } ]? <!--在聚合里面在定义子聚合 -->
+    }
+    [,"<aggregation_name_2>" : { ... } ]*<!--聚合的名字 -->
+}
+
+指标聚合: max min sum avg
+
+###age有值的数据一共多少条
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "age_count": {
+      "value_count": {					###Value count 统计某字段有值的文档数
+        "field": "age"
+      }
+    }
+  }
+}
+
+###age=58的数据总共多少条
+POST /user/doc/_count
+{
+  "query": {
+    "term": {
+      "age": {
+        "value": "58"
+      }
+    }
+  }
+}
+
+###age去重后一共多少条数据
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "age_distinct": {
+      "cardinality": {
+        "field": "age"
+      }
+    }
+  }
+}
+
+### 省分组，省下的男女分组，每个省男、女的年龄属性 count,min,max,avg,sum
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "pro_group": {
+      "terms": {
+        "field": "province"
+      },
+      "aggs": {
+        "sex_group": {
+          "terms": {
+            "field": "sex"
+          },
+          "aggs": {
+            "age_stats": {
+              "stats": {
+                "field": "age"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+###找出江苏省的人，以市分组，展示年龄的五个参数  stats 统计 count max min avg sum 5个值
+POST /user/doc/_search
+{
+  "query": {
+    "term": {
+      "province": {
+        "value": "江苏省"
+      }
+    }
+  },
+  "aggs": {
+    "jiangsu_city": {
+      "terms": {
+        "field": "city"
+      },
+      "aggs": {
+        "age_stats": {
+          "stats": {				###extended_stats 高级统计，比stats多4个统计结果： 平方和、方差、标准差、平均值加/减两个标准差的区间
+            "field": "age"
+          }
+        }
+      }
+    }
+  },
+  "size": 0
+}
+
+### 对姓名中含有“周”的人分组
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "name_group": {
+      "terms": {
+        "field": "name",
+        "include": ".*周.*",
+		"exclude": ".*订单.*"
+      }
+    }
+  }
+}
+
+###找出所有男性，以省分组
+POST /user/doc/_search
+{
+  "query": {
+    "term": {
+      "sex": {
+        "value": "男"
+      }
+    }
+  },
+  "aggs": {					###这个是aggregations的缩写,这边用户随意,可以写全称也可以缩写
+    "all_pro": {
+      "terms": {			###定义单个桶(集合)的类型为 terms
+        "field": "province"	###定义一个聚合的名字,与java的方法命名类似,建议用'_'线来分隔单词
+      }
+    }
+  },
+  "size": 0					###不需要返回文档,所以直接设置为0.可以提高查询速度
+}
+
+###匹配游泳爱好者，以省分组
+POST /user/doc/_search
+{
+  "query": {
+    "match": {
+      "hobby": "游泳"
+    }
+  },
+  "aggs": {
+    "all_pro": {
+      "terms": {
+        "field": "province"
+      }
+    }
+  },
+  "size": 0
+}
+
+###找出江苏省的人，以市分组，计算出每个市的平均年龄
+POST /user/doc/_search
+{
+  "query": {
+    "term": {
+      "province": {
+        "value": "江苏省"
+      }
+    }
+  },
+  "aggs": {
+    "jiangsu_city": {
+      "terms": {
+        "field": "city"
+      },
+      "aggs": {
+        "avg_age": {
+          "avg": {
+            "field": "age"
+          }
+        }
+      }
+    }
+  },
+  "size": 0
+}
+
+###过滤性别为 “女”，计算age的stats，对满足过滤查询的文档进行聚合计算
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "sex_filter": {
+      "filter": {
+        "term": {
+          "sex": "女"
+        }
+      },
+      "aggs": {
+        "age_stats": {
+          "stats": {
+            "field": "age"
+          }
+        }
+      }
+    }
+  }
+}
+
+###【做开右闭）范围分组聚合
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "age_range": {
+      "range": {
+        "field": "age",
+        "keyed": true, 
+        "ranges": [
+          {
+            "from": 0, 
+            "to": 25,
+            "key": "年轻人"
+          },
+          {
+            "from": 25, 
+            "to": 50,
+            "key": "中年人"
+          },
+          {
+            "from": 50,
+            "to": 100,
+            "key": "老年人"
+          }
+        ]
+      }
+    }
+  }
+}
+
+###日期聚合， 时间范围分组聚合
+POST /user/doc/_search?size=0
+{
+  "query": {
+    "range": {
+      "birth": {
+        "gte": 1546272000000,			###2019-01-01
+		"lte": 1577807999000			###2019-12-32 23:59:59，没效果，不能取代extended_bounds
+      }
+    }
+  }, 
+  "aggs": {
+    "birth_show": {
+      "date_histogram": {
+        "field": "birth",
+        "extended_bounds": {			###强制返回数据的范围,这个参数强制返回整年。
+          "min": "2019-01-01",
+          "max": "2019-12-31"			###没这个属性不显示12月份
+        },
+        "format": "yyyy-MM-dd", 
+        "interval": "month",			###月份聚合,year,quarter,month,week,day,hour,minute,second
+        "min_doc_count": 0,				###可以返回没有数据的月份
+        "keyed": true,
+        "order": {
+          "_key": "asc"					###_key || _count
+        }
+      }
+    }
+  }
+}
+
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "birth_filter": {
+      "filter": {
+        "range": {
+          "birth": {
+            "gte": 1546272000000
+          }
+        }
+      },
+      "aggs": {
+        "date_group": {
+          "date_histogram": {
+            "field": "birth",
+            "interval": "month",
+            "extended_bounds": {
+              "min": "2019-01-01",
+              "max": "2019-12-31"
+            },
+            "format": "yyyy-MM-dd",
+            "order": {
+              "_count": "desc"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+###match_phrase:短语匹配
+POST /user/doc/_search
+{
+  "query": {
+   "match_phrase": {
+     "hobby": "足球，书法"
+   } 
+  }
+}
+
+###bool(布尔)查询,must,shoud,must_not,与或非，and,or,not
+POST /user/doc/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {"term": {
+          "sex": {
+            "value": "女"
+          }
+        }},
+        {"term": {
+            "province": {
+              "value": "江苏省"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+### terms,包含关系，相当于in操作，多个属性可以用bool查询
+POST /user/doc/_search
+{
+  "query": {
+    "terms": {
+      "age": [
+        "58",
+        "28"
+      ]
+    }
+  }
+}
+
+###因为 match 查询必须查找两个词（ ["足球","排球"] ），它在内部实际上先执行两次 term 查询，然后将两次查询的结果合并作为最终结果输出。为了做到这点，它将两个 term 查询包入一个 bool 查询中，详细信息见 布尔查询。
+POST /user/doc/_search
+{
+  "query": {
+    "match": {
+      "hobby": "足球 排球"
+    }
+  }
+}
+
+POST /user/doc/_search
+{
+  "query": {
+    "match": {
+      "hobby": {
+        "query": "足球 排球",
+        "operator": "and"			###默认是or
+      }
+    }
+  }
+}
+
+###分页排序
+POST /user/doc/_search
+{
+  "from": 0,
+  "size": 2,
+  "sort": [
+    {
+      "age":"desc"
+    },
+    {
+      "birth":"asc"
+    }
+  ]
+}

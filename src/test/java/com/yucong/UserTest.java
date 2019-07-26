@@ -19,7 +19,7 @@ import com.yucong.entity.User;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = ESApp.class)
-public class ESAppTest {
+public class UserTest {
 
     @Autowired
     private ElasticsearchTemplate esTemplete;
@@ -45,14 +45,14 @@ public class ESAppTest {
     public void save() throws Exception {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         List<User> list = new ArrayList<>();
-        list.add(new User(1l, "赵敏", "女", 25, "排球，足球，游泳", "江苏省", "淮安市", sdf.parse("2017-01-01"), ""));
-        list.add(new User(2l, "钱钟书", "男", 58, "足球，书法", "江苏省", "淮安市", sdf.parse("2018-02-31"), ""));
-        list.add(new User(3l, "孙满堂", "男", 78, "跑步，篮球，羽毛球", "江苏省", "南京市", sdf.parse("2019-01-01"), ""));
-        list.add(new User(4l, "李白", "男", 34, "书法，篮球", "江苏省", "南京市", sdf.parse("2019-01-01"), ""));
-        list.add(new User(5l, "周武王", "男", 58, "跑步", "山东省", "济南市", sdf.parse("2019-02-01"), ""));
-        list.add(new User(6l, "吴文周", "男", 50, "排球，游泳，足球", "山东省", "济南市", sdf.parse("2019-02-01"), ""));
-        list.add(new User(7l, "郑爽", "女", 28, "乒乓球，高尔夫，台球", "山东省", "青岛市", sdf.parse("2019-11-21"), ""));
-        list.add(new User(8l, "王老汉", "男", 28, "台球，足球", "山东省", "青岛市", sdf.parse("2019-11-25"), ""));
+        list.add(new User(1l, "赵敏", "女", 25, "排球，足球，游泳", "江苏省", "淮安市", sdf.parse("2017-01-01"), null));
+        list.add(new User(2l, "钱钟书", "男", 58, "足球，书法", "江苏省", "淮安市", sdf.parse("2018-02-31"), null));
+        list.add(new User(3l, "孙满堂", "男", 78, "跑步，篮球，羽毛球", "江苏省", "南京市", sdf.parse("2019-01-01"), null));
+        list.add(new User(4l, "李白", "男", 34, "书法，篮球", "江苏省", "南京市", sdf.parse("2019-01-01"), null));
+        list.add(new User(5l, "周武王", "男", 58, "跑步", "山东省", "济南市", sdf.parse("2019-02-01"), null));
+        list.add(new User(6l, "吴文周", "男", 50, "排球，游泳，足球", "山东省", "济南市", sdf.parse("2019-02-01"), null));
+        list.add(new User(7l, "郑爽", "女", 28, "乒乓球，高尔夫，台球", "山东省", "青岛市", sdf.parse("2019-11-21"), null));
+        list.add(new User(8l, "王老汉", "男", 28, "台球，足球", "山东省", "青岛市", sdf.parse("2019-11-25"), null));
         itemRepository.saveAll(list);
     }
 
