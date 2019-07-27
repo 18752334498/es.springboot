@@ -147,6 +147,20 @@ https://www.elastic.co/guide/cn/index.html			官方中文API
 
 
 当进行精确值查找时，我们会使用过滤器（filters）。过滤器很重要，因为它们执行速度非常快，不会计算相关度（直接跳过了整个评分阶段）而且很容易被缓存。我们会在本章后面的 过滤器缓存 中讨论过滤器的性能优势，不过现在只要记住：请尽可能多的使用过滤式查询。
+constant_score 表示查询以非评分模式进行，这样可以省掉评分过程，提高查询速度。
+
+POST /user/doc/_search?size=0
+{
+  "query": {
+    "constant_score": {
+      "filter": {
+        "term": {
+          "sex": "女"
+        }
+      }
+    }
+  }
+}
 
 
 "aggregations" : {
@@ -198,22 +212,26 @@ POST /user/doc/_search?size=0
   }
 }
 
-### 省分组，省下的男女分组，每个省男、女的年龄属性 count,min,max,avg,sum
+###以江苏省分类，所有男性，查询年龄的五项数据
 POST /user/doc/_search?size=0
 {
   "aggs": {
-    "pro_group": {
-      "terms": {
-        "field": "province"
+    "pro_filter": {
+      "filter": {
+        "term": {
+          "province": "江苏省"
+        }
       },
       "aggs": {
-        "sex_group": {
-          "terms": {
-            "field": "sex"
+        "sex_filter": {
+          "filter": {
+            "term": {
+              "sex": "男"
+            }
           },
           "aggs": {
             "age_stats": {
-              "stats": {
+              "stats": {			###extended_stats 高级统计，比stats多4个统计结果： 平方和、方差、标准差、平均值加/减两个标准差的区间
                 "field": "age"
               }
             }
@@ -223,32 +241,33 @@ POST /user/doc/_search?size=0
     }
   }
 }
-
-###找出江苏省的人，以市分组，展示年龄的五个参数  stats 统计 count max min avg sum 5个值
-POST /user/doc/_search
+POST /user/doc/_search?size=0
 {
   "query": {
-    "term": {
-      "province": {
-        "value": "江苏省"
-      }
+    "bool": {
+      "must": [
+        {"term": {
+          "province": {
+            "value": "江苏省"
+          }
+        }},
+        {
+          "term": {
+            "sex": {
+              "value": "男"
+            }
+          }
+        }
+      ]
     }
   },
   "aggs": {
-    "jiangsu_city": {
-      "terms": {
-        "field": "city"
-      },
-      "aggs": {
-        "age_stats": {
-          "stats": {				###extended_stats 高级统计，比stats多4个统计结果： 平方和、方差、标准差、平均值加/减两个标准差的区间
-            "field": "age"
-          }
-        }
+    "age_stats": {
+      "stats": {
+        "field": "age"
       }
     }
-  },
-  "size": 0
+  }
 }
 
 ### 对姓名中含有“周”的人分组
@@ -265,91 +284,6 @@ POST /user/doc/_search?size=0
   }
 }
 
-###找出所有男性，以省分组
-POST /user/doc/_search
-{
-  "query": {
-    "term": {
-      "sex": {
-        "value": "男"
-      }
-    }
-  },
-  "aggs": {					###这个是aggregations的缩写,这边用户随意,可以写全称也可以缩写
-    "all_pro": {
-      "terms": {			###定义单个桶(集合)的类型为 terms
-        "field": "province"	###定义一个聚合的名字,与java的方法命名类似,建议用'_'线来分隔单词
-      }
-    }
-  },
-  "size": 0					###不需要返回文档,所以直接设置为0.可以提高查询速度
-}
-
-###匹配游泳爱好者，以省分组
-POST /user/doc/_search
-{
-  "query": {
-    "match": {
-      "hobby": "游泳"
-    }
-  },
-  "aggs": {
-    "all_pro": {
-      "terms": {
-        "field": "province"
-      }
-    }
-  },
-  "size": 0
-}
-
-###找出江苏省的人，以市分组，计算出每个市的平均年龄
-POST /user/doc/_search
-{
-  "query": {
-    "term": {
-      "province": {
-        "value": "江苏省"
-      }
-    }
-  },
-  "aggs": {
-    "jiangsu_city": {
-      "terms": {
-        "field": "city"
-      },
-      "aggs": {
-        "avg_age": {
-          "avg": {
-            "field": "age"
-          }
-        }
-      }
-    }
-  },
-  "size": 0
-}
-
-###过滤性别为 “女”，计算age的stats，对满足过滤查询的文档进行聚合计算
-POST /user/doc/_search?size=0
-{
-  "aggs": {
-    "sex_filter": {
-      "filter": {
-        "term": {
-          "sex": "女"
-        }
-      },
-      "aggs": {
-        "age_stats": {
-          "stats": {
-            "field": "age"
-          }
-        }
-      }
-    }
-  }
-}
 
 ###【做开右闭）范围分组聚合
 POST /user/doc/_search?size=0
@@ -376,6 +310,26 @@ POST /user/doc/_search?size=0
             "key": "老年人"
           }
         ]
+      }
+    }
+  }
+}
+
+###条形图，柱状图，年龄为条件，20岁一个间隔，并且算出每个区间的最大值
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "price_tiaoxing": {
+      "histogram": {
+        "field": "age",
+        "interval": 20
+      },
+      "aggs": {
+        "age_max": {
+          "max": {
+            "field": "age"
+          }
+        }
       }
     }
   }
@@ -524,3 +478,4 @@ POST /user/doc/_search
     }
   ]
 }
+
