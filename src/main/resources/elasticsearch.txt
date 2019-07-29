@@ -107,29 +107,91 @@ GET /_analyze
 	# 对快速高亮fast vector highlighter能提升性能，但开启又会加大索引体积，不适合大数据量用
 
 
-PUT bk
+对机构字段既可以进行模糊查询，又可以按照字段全名进行聚合统计
+"institution": {
+				  "type": "text",
+				  "analyzer": "ik_max_word",
+				  "search_analyzer": "ik_max_word",
+				  "fielddata" : true,
+				  "fields": {"raw": {"type": "keyword"}
+			  }
+如果不设置keyword索引在聚合时将会使用已分解后的词。例如：想用“国泰君安”聚合，结果使用“国泰”，“君安”聚合	
+"aggs": {
+            "institution_count": {
+                "terms": {"field": "institution.raw"}#使用keyword分组
+            }
+        }
+					
+###自定义mapping			
+PUT user
 {
-  "mappings": {
-    "doc": {
-      "properties": {
-        "name": {
-          "type": "keyword"
-        },
-        "sex": {
-          "type": "keyword"
-        },
-        "age": {
-          "type": "long"
-        },
-        "book": {
-          "type": "text",
-          "analyzer": "ik_max_word"
-        },
-        "remark": {
-          "type": "text",
-          "analyzer": "ik_max_word"
+  "mappings" : {
+      "doc" : {
+        "properties" : {
+          "age" : {
+            "type" : "integer"
+          },
+          "birth" : {
+            "type" : "date",
+            "format": "yyyy-MM-dd HH:mm:ss"
+          },
+          "city" : {
+            "type" : "keyword"
+          },
+          "hobby" : {
+            "type" : "text",
+            "analyzer" : "ik_max_word"
+          },
+          "id" : {
+            "type" : "long"
+          },
+          "intro" : {
+            "type" : "text",
+            "analyzer" : "ik_max_word"
+          },
+          "name" : {
+            "type" : "keyword"
+          },
+          "province" : {				###province既可以精确匹配、分组，也可以模糊查询
+            "type" : "text",
+            "analyzer": "ik_max_word",
+            "search_analyzer": "ik_max_word",
+            "fielddata" : true,
+            "fields": {"raw": {"type": "keyword"}}
+          },
+          "sex" : {
+            "type" : "keyword"
+          }
         }
       }
+    }
+}
+###对province分组
+POST /user/doc/_search?size=0
+{
+  "aggs": {
+    "pro_group": {
+      "terms": {
+        "field": "province.raw"
+      }
+    }
+  }
+}
+###江苏做精确匹配
+POST /user/doc/_search
+{
+  "query": {
+    "term": {
+      "province.raw": "江苏"		###因为是精确查询，所以查不到；如果去掉raw，就是模糊查询。
+    }
+  }
+}
+###模糊查询江苏，查出province含有江苏的数据
+POST /user/doc/_search
+{
+  "query": {
+    "match": {				### 如果用match查询keyword字段，比如江苏省，只有输入江苏省三个字才能查到；如果查询text字段，分词后只要包含就可以查到。
+      "province": "江苏"
     }
   }
 }
@@ -137,6 +199,15 @@ PUT bk
 
 ==============================================================================================================================================
 如果我们的数据没有自然ID，我们可以让Elasticsearch自动为我们生成。请求结构发生了变化：PUT方法——“在这个URL中存储文档”变成了POST方法——"在这个类型下存储文档"
+
+###输出固定字段
+POST /bk/doc/_search
+{
+  "query": {
+    "match_all": {}
+  },
+  "_source": ["name","price"]
+}
 
 
 ==============================================================================================================================================

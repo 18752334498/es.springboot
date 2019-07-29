@@ -20,7 +20,7 @@ public class Book {
     @Id
     private String id;
 
-    @Field(type = FieldType.Keyword)
+    @Field(type = FieldType.Text, analyzer = "ik_max_word")
     private String name;
 
     @Field(type = FieldType.Text, analyzer = "ik_max_word")
