@@ -180,9 +180,9 @@ POST /user/doc/_search?size=0
 ###江苏做精确匹配
 POST /user/doc/_search
 {
-  "query": {
-    "term": {
-      "province.raw": "江苏"		###因为是精确查询，所以查不到；如果去掉raw，就是模糊查询。
+  "query": {				
+    "term": {				### 如果用term查询keyword字段，比如江苏省，只有输入江苏省三个字才能查到；如果查询text字段，只要倒排索引包含"江苏"就可以查到。
+      "province.raw": "江苏"		###province.raw在数据库是keyword，没有被分词，所有"江苏"查不到；如果去掉raw，就是模糊查询。
     }
   }
 }
@@ -190,7 +190,7 @@ POST /user/doc/_search
 POST /user/doc/_search
 {
   "query": {
-    "match": {				### 如果用match查询keyword字段，比如江苏省，只有输入江苏省三个字才能查到；如果查询text字段，分词后只要包含就可以查到。
+    "match": {				### 如果用match查询keyword字段，比如江苏省，只有输入江苏省三个字才能查到；如果查询text字段，分词后只要倒排索引包含就可以查到。
       "province": "江苏"
     }
   }
@@ -548,5 +548,33 @@ POST /user/doc/_search
       "birth":"asc"
     }
   ]
+}
+
+### match match_phrase match_phrase_prefix
+POST /user/doc/_search
+{
+  "query": {
+    "match_phrase_prefix": {
+      "intro": {
+        "query": "难"		###查询内容不分词，不分词在内容里面查找
+      }
+    }
+  }
+}
+POST /user/doc/_search
+{
+  "query": {
+    "match_phrase": {
+      "intro": "海纳"		###查询内容不分词，不分词在倒排索引查询
+    }
+  }
+}
+POST /user/doc/_search
+{
+  "query": {
+    "match": {
+      "intro": "海"			###对查询内容分词，分此后在倒排索引查询
+    }
+  }
 }
 
